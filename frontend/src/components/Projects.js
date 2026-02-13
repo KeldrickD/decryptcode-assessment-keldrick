@@ -157,7 +157,12 @@ function Projects() {
             <span>Loading transactions…</span>
           </div>
         ) : txError ? (
-          <p className="transactions-error">{txError}</p>
+          <>
+            <p className="transactions-error">{txError}</p>
+            {txError.includes('not found') && (
+              <p className="transactions-tip">Tip: Use a wallet address from the backend mock data for demo (e.g. 0x1234…5678).</p>
+            )}
+          </>
         ) : transactions.length === 0 ? (
           <p className="transactions-empty">No transactions for this wallet</p>
         ) : (
