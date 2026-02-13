@@ -8,12 +8,31 @@ function truncateAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function truncateHash(hash) {
+  if (!hash || hash.length < 12) return hash || '';
+  return `${hash.slice(0, 10)}…${hash.slice(-8)}`;
+}
+
+function formatTimestamp(ms) {
+  if (ms == null) return '—';
+  const d = new Date(ms);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return d.toLocaleDateString();
+}
+
 function Projects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [address, setAddress] = useState(null);
   const [walletError, setWalletError] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txError, setTxError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +53,34 @@ function Projects() {
     fetchProjects();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!address) {
+      setTransactions([]);
+      setTxError(null);
+      return;
+    }
+    let cancelled = false;
+    async function fetchWalletTx() {
+      setTxLoading(true);
+      setTxError(null);
+      try {
+        const res = await fetch(`${API_BASE}/wallets/${encodeURIComponent(address)}/transactions`);
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(json?.error || 'Failed to load transactions');
+        }
+        setTransactions(json.data || []);
+      } catch (err) {
+        if (!cancelled) setTxError(err.message || 'Failed to fetch transactions');
+      } finally {
+        if (!cancelled) setTxLoading(false);
+      }
+    }
+    fetchWalletTx();
+    return () => { cancelled = true; };
+  }, [address]);
 
   async function connectWallet() {
     setWalletError(null);
@@ -99,6 +146,47 @@ function Projects() {
           </li>
         ))}
       </ul>
+
+      <div className="transactions-section">
+        <h3 className="transactions-header">Transactions</h3>
+        {!address ? (
+          <p className="transactions-placeholder">Connect wallet to view your transactions</p>
+        ) : txLoading ? (
+          <div className="transactions-loading">
+            <div className="spinner spinner--sm" aria-hidden="true" />
+            <span>Loading transactions…</span>
+          </div>
+        ) : txError ? (
+          <p className="transactions-error">{txError}</p>
+        ) : transactions.length === 0 ? (
+          <p className="transactions-empty">No transactions for this wallet</p>
+        ) : (
+          <div className="transactions-table-wrap">
+            <table className="transactions-table">
+              <thead>
+                <tr>
+                  <th>Hash</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Amount</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr key={tx.id}>
+                    <td className="tx-hash" title={tx.txHash}>{truncateHash(tx.txHash)}</td>
+                    <td className="tx-addr" title={tx.from}>{truncateAddress(tx.from)}</td>
+                    <td className="tx-addr" title={tx.to}>{truncateAddress(tx.to)}</td>
+                    <td className="tx-amount">{tx.value} {tx.token || ''}</td>
+                    <td className="tx-time">{formatTimestamp(tx.timestamp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
