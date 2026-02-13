@@ -55,7 +55,10 @@ function Projects() {
   if (loading) {
     return (
       <section className="projects-section">
-        <p className="projects-loading">Loading projects…</p>
+        <div className="projects-loading">
+          <div className="spinner" aria-hidden="true" />
+          <p>Loading projects…</p>
+        </div>
       </section>
     );
   }
