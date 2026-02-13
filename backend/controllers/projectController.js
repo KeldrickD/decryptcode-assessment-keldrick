@@ -2,10 +2,18 @@ const { getProjects, getProjectById, addProject } = require('../config/store');
 
 /**
  * List all projects.
+ * Supports ?status= query param for filtering (case-insensitive).
+ * E.g. ?status=active, ?status=in-progress, ?status=archived
  */
 function listProjects(req, res, next) {
   try {
-    const projects = getProjects();
+    let projects = getProjects();
+    const status = req.query.status;
+    if (status != null && String(status).trim() !== '') {
+      projects = projects.filter(
+        (p) => p.status && p.status.toLowerCase() === String(status).trim().toLowerCase()
+      );
+    }
     res.json({ success: true, data: projects, count: projects.length });
   } catch (err) {
     next(err);
